@@ -8,12 +8,15 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'path';
 import 'dotenv/config';
 import { AppResolver } from './app.resolver';
+import { ConfigModule } from '@nestjs/config';
+import * as Joi from 'joi';
 
 @Module({
   imports: [
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+      context: ({ req }) => ({ req }),
       sortSchema: true,
       playground: process.env.GRAPHQL_PLAYGROUND === 'true', // Use environment variable
     }),
@@ -36,6 +39,11 @@ import { AppResolver } from './app.resolver';
           throw error;
         }
       },
+    }),
+    ConfigModule.forRoot({
+      validationSchema: Joi.object({
+        JWT_SECRET: Joi.string().required(), // Требуем обязательное наличие JWT_SECRET
+      }),
     }),
   ],
   controllers: [AppController],
