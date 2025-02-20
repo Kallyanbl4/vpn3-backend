@@ -6,6 +6,7 @@ import { UserService } from './user.service';
 import { UsersResolver } from './user.resolver';
 import { JwtStrategy } from './jwt.strategy';
 import { RoleGuard } from './role.guard';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { RoleGuard } from './role.guard';
       secret: process.env.JWT_SECRET || 'SECRET_KEY', 
       signOptions: { expiresIn: '1h' }, // срок действия токена (напр. 1 час)
     }),
+    PrismaModule,
     // тут можно импортировать TypeOrmModule.forFeature([User]) или др. для репозитория
   ],
   providers: [UserService, UsersResolver, JwtStrategy, RoleGuard],

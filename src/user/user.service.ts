@@ -1,53 +1,124 @@
 // file: src/user/user.service.ts
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, Inject } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import { PrismaService } from '../prisma/prisma.service';
 import { User } from './user.entity';
 import { Role } from './role.enum';
-// Предположим, что репозиторий или модель пользователя внедряется, например через TypeORM
-// import { InjectRepository } from '@nestjs/typeorm';
-// import { Repository } from 'typeorm';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class UserService {
-  // пример: @InjectRepository(User) private readonly userRepo: Repository<User>
-  private users: User[] = []; // временное хранилище вместо БД
+  constructor(private prisma: PrismaService, @Inject(CACHE_MANAGER) private cacheManager: Cache) {}
 
   async register(email: string, password: string): Promise<User> {
-    // Проверим, что email не занят
-    const existing = await this.findByEmail(email);
+    const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
       throw new ConflictException('Email is already registered');
     }
-    // Хешируем пароль перед сохранением
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-    const user: User = {
-      id: Date.now(),  // генерируем ID (упрощенно)
-      email,
-      password: hashedPassword,
-      roles: [Role.User],  // новой учетке присваиваем роль "user"
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        roles: [Role.User].join(','),
+      },
+    });
+    
+    try {
+      await this.cacheManager.set(`user:${user.id}`, {
+        ...user,
+        roles: user.roles.split(',') as Role[],
+      }, 3600);
+    } catch (cacheError) {
+      console.error('Redis caching error:', cacheError);
+    }
+    return {
+      ...user,
+      roles: user.roles.split(',') as Role[],
     };
-    this.users.push(user);
-    // В случае с БД: await this.userRepo.save(user);
-    return user;
   }
 
   async validateUser(email: string, pass: string): Promise<User | null> {
     const user = await this.findByEmail(email);
-    if (!user) return null; // Ошибки не будет, потому что тип User | null
-    
+    if (!user) return null;
     const passwordMatch = await bcrypt.compare(pass, user.password);
     if (!passwordMatch) {
-      return null; // Теперь TypeScript не ругается
+      return null;
     }
     return user;
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return this.users.find(u => u.email === email) || null; // Явно указываем `null`, если не найден
+    try {
+      const cachedUser = await this.cacheManager.get<User | null>(`user_email:${email}`);
+      if (cachedUser) {
+        return cachedUser;
+      }
+    } catch (cacheError) {
+      console.error('Redis get error:', cacheError);
+    }
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (user) {
+      return {
+        ...user,
+        roles: user.roles.split(',') as Role[],
+      };
+    }
+    return null;
   }
 
   async findById(id: number): Promise<User | undefined> {
-    return this.users.find(u => u.id === id);
+    try {
+      const cachedUser = await this.cacheManager.get<User | undefined>(`user:${id}`);
+      if (cachedUser) {
+        return cachedUser;
+      }
+    } catch (cacheError) {
+      console.error('Redis get error:', cacheError);
+    }
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (user) {
+      return {
+        ...user,
+        roles: user.roles.split(',') as Role[],
+      };
+    }
+    return undefined;
+  }
+
+  async findAll(): Promise<User[]> {
+    const users = await this.prisma.user.findMany();
+    return users.map(user => ({
+      ...user,
+      roles: user.roles.split(',') as Role[],
+    }));
+  }
+
+  async update(id: number, data: Partial<User>): Promise<User> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const { id: _, ...updateData } = data;
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: { ...updateData, roles: updateData.roles?.join(',') },
+    });
+    
+    try {
+      await this.cacheManager.set(`user:${id}`, {
+        ...updatedUser,
+        roles: updatedUser.roles.split(',') as Role[],
+      }, 3600);
+    } catch (cacheError) {
+      console.error('Redis caching error:', cacheError);
+    }
+    return {
+      ...updatedUser,
+      roles: updatedUser.roles.split(',') as Role[],
+    };
   }
 }

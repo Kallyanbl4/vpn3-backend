@@ -2,6 +2,47 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type AuthResponse {
+  accessToken: String!
+  user: User!
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+type Mutation {
+  login(data: LoginInput!): AuthResponse!
+  register(data: RegisterUserInput!): User!
+  updateUser(data: UpdateUserInput!, id: Float!): User!
+}
+
 type Query {
   getHello: String!
+  me: User!
+  users: [User!]!
+}
+
+input RegisterUserInput {
+  email: String!
+  password: String!
+}
+
+"""User roles"""
+enum Role {
+  Admin
+  User
+}
+
+input UpdateUserInput {
+  email: String
+  password: String
+  roles: [Role!]
+}
+
+type User {
+  email: String!
+  id: Float!
+  roles: [Role!]!
 }

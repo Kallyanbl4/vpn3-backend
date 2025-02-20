@@ -1,7 +1,23 @@
-// file: src/user/types.ts
+/**
+ * Роли пользователей в системе.
+ */
+export enum Role {
+  Admin = 'admin',
+  User = 'user',
+}
+
+/**
+ * Структура полезной нагрузки JWT-токена для аутентификации пользователей.
+ */
 export interface JwtPayload {
-    sub: number;
-    email: string;
-    roles: string[]; // или Role[]
-  }
-  
+  /** Идентификатор пользователя */
+  sub: number;
+  /** Email пользователя */
+  email: string;
+  /** Роли пользователя */
+  roles: Role[];
+  /** Время выпуска токена (опционально) */
+  iat?: number;
+  /** Время истечения срока действия (опционально) */
+  exp?: number;
+}

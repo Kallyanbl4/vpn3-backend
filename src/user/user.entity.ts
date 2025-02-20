@@ -1,11 +1,17 @@
 // file: src/user/user.entity.ts
+import { ObjectType, Field } from '@nestjs/graphql';
 import { Role } from './role.enum';
 
+@ObjectType()
 export class User {
+  @Field()
   id: number;
+
+  @Field()
   email: string;
-  password: string;       // захешированный пароль
-  roles: Role[];          // роли пользователя
+
+  password: string; // захешированный пароль (не добавляем в GraphQL схему)
+
+  @Field(() => [Role])
+  roles: Role[];
 }
-// Compare this snippet from src/user/user.service.ts:
-// // file: src/user/user.service.ts
