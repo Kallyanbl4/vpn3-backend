@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { Cache } from 'cache-manager';
 
 /**
- * Сервис приложения для предоставления базовой информации и статуса VPN.
+ * Service providing basic application information and VPN status.
  */
 @Injectable()
 export class AppService {
@@ -16,8 +16,8 @@ export class AppService {
   ) {}
 
   /**
-   * Возвращает приветственное сообщение для проверки работоспособности приложения.
-   * @returns {string} Приветственное сообщение
+   * Returns a welcome message to check application health.
+   * @returns {string} Welcome message
    */
   getHello(): string {
     this.logger.log('Returning welcome message');
@@ -25,8 +25,8 @@ export class AppService {
   }
 
   /**
-   * Асинхронно возвращает статус VPN-сервера, используя кэширование.
-   * @returns {Promise<string>} Статус VPN-сервера
+   * Asynchronously retrieves the VPN server status with caching.
+   * @returns {Promise<string>} VPN server status
    */
   async getVpnStatus(): Promise<string> {
     const cacheKey = 'vpn_status';
@@ -37,13 +37,22 @@ export class AppService {
       return cachedStatus;
     }
 
-    // Пример: здесь может быть вызов внешней команды OpenVPN
     const vpnHost = this.configService.get<string>('VPN_SERVER_HOST') || 'unknown';
-    const status = `VPN server at ${vpnHost} is running`; // Заменить на реальную логику
-    const ttl = this.configService.get<number>('REDIS_TTL') || 300; // 5 минут по умолчанию
+    const status = await this.fetchVpnStatus(vpnHost); // Заменить на реальную логику
+    const ttl = this.configService.get<number>('REDIS_TTL') || 300;
 
     await this.cacheManager.set(cacheKey, status, ttl);
     this.logger.log(`Cached VPN status for ${vpnHost}`);
     return status;
+  }
+
+  /**
+   * Fetches VPN status from an external service (placeholder).
+   * @param {string} host VPN server host
+   * @returns {Promise<string>} VPN status
+   */
+  private async fetchVpnStatus(host: string): Promise<string> {
+    // Placeholder: Implement real VPN status check (e.g., HTTP request)
+    return `VPN server at ${host} is running`;
   }
 }

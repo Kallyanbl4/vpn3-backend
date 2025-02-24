@@ -1,4 +1,3 @@
-// file: src/user/user.module.ts
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -7,18 +6,26 @@ import { UsersResolver } from './user.resolver';
 import { JwtStrategy } from './jwt.strategy';
 import { RoleGuard } from './role.guard';
 import { PrismaModule } from '../prisma/prisma.module';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
+/**
+ * Модуль для управления пользователями, включая аутентификацию и авторизацию.
+ */
 @Module({
   imports: [
-    PassportModule.register({ defaultStrategy: 'jwt' }), 
-    JwtModule.register({
-      global: true,              // JWT модуль будет глобальным (Nest v10+)
-      secret: process.env.JWT_SECRET || 'SECRET_KEY', 
-      signOptions: { expiresIn: '1h' }, // срок действия токена (напр. 1 час)
+    ConfigModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET') || 'SECRET_KEY',
+        signOptions: { expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1h' },
+      }),
     }),
     PrismaModule,
-    // тут можно импортировать TypeOrmModule.forFeature([User]) или др. для репозитория
   ],
   providers: [UserService, UsersResolver, JwtStrategy, RoleGuard],
+  exports: [JwtModule, UserService], // Экспортируем JwtModule для доступа к JwtService в других модулях
 })
 export class UserModule {}

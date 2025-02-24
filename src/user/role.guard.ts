@@ -1,4 +1,3 @@
-// file: src/user/role.guard.ts
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from './roles.decorator';
@@ -9,25 +8,29 @@ import { GqlExecutionContext } from '@nestjs/graphql';
 export class RoleGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
+  private getUserFromContext(context: ExecutionContext) {
+    const ctx = GqlExecutionContext.create(context);
+    return ctx.getContext().req.user;
+  }
+
+  private hasRequiredRoles(user: any, requiredRoles: Role[]) {
+    if (!user || !user.roles) return false;
+    return requiredRoles.some((role) => user.roles.includes(role));
+  }
+
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<Role[]>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
     if (!requiredRoles || requiredRoles.length === 0) {
-      // Если роль не указана декоратором, доступ открыт (нет ограничения по ролям)
       return true;
     }
-    // Получаем пользователя из GraphQL контекста (req.user должен быть установлен AuthGuard-ом)
-    const ctx = GqlExecutionContext.create(context);
-    const user = ctx.getContext().req.user;
+    const user = this.getUserFromContext(context);
     if (!user) {
-      // Если по какой-то причине пользователя нет в запросе (не залогинен) – отклоняем
       throw new ForbiddenException('Access denied');
     }
-    // Проверяем, содержит ли роль пользователя хотя бы одну из необходимых ролей
-    const hasRole = requiredRoles.some((role) => user.roles?.includes(role));
-    if (!hasRole) {
+    if (!this.hasRequiredRoles(user, requiredRoles)) {
       throw new ForbiddenException('Forbidden resource');
     }
     return true;

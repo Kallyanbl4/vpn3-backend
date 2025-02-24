@@ -1,4 +1,3 @@
-// file: src/user/user.resolver.ts
 import { Resolver, Mutation, Query, Args, Context } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { User } from './user.entity';
@@ -12,6 +11,7 @@ import { LoginInput } from './dto/login.input';
 import { AuthResponse } from './dto/auth-response';
 import { JwtService } from '@nestjs/jwt';
 import { UpdateUserInput } from './dto/update-user.input';
+import { UnauthorizedException } from '@nestjs/common';
 
 @Resolver(() => User)
 export class UsersResolver {
@@ -20,50 +20,50 @@ export class UsersResolver {
     private jwtService: JwtService,
   ) {}
 
-  // Mutation to register a new user
+  /** Мутация для регистрации нового пользователя */
   @Mutation(() => User)
   async register(@Args('data') data: RegisterUserInput): Promise<User> {
-    console.log('Registering user:', data.email);
+    console.log('Регистрация пользователя:', data.email);
     return this.userService.register(data.email, data.password);
   }
 
-  // Mutation to authenticate a user and return a JWT token
+  /** Мутация для аутентификации пользователя и возврата JWT-токена */
   @Mutation(() => AuthResponse)
   async login(@Args('data') { email, password }: LoginInput): Promise<AuthResponse> {
-    console.log('Attempting login for:', email);
+    console.log('Попытка входа для:', email);
     const user = await this.userService.validateUser(email, password);
     if (!user) {
-      console.error('Login failed for:', email);
-      throw new Error('Invalid credentials');
+      console.error('Неудачная попытка входа для:', email);
+      throw new UnauthorizedException('Неверные учетные данные');
     }
     const payload = { sub: user.id, email: user.email, roles: user.roles };
     const token = await this.jwtService.signAsync(payload);
-    console.log('Login successful for:', email);
+    console.log('Успешный вход для:', email);
     return { accessToken: token, user };
   }
 
-  // Query to fetch the currently authenticated user's details
+  /** Запрос для получения данных текущего аутентифицированного пользователя */
   @Query(() => User)
   @UseGuards(GqlAuthGuard)
   async me(@Context() context): Promise<User> {
-    console.log('Fetching current user:', context.req.user?.email);
+    console.log('Получение данных текущего пользователя:', context.req.user?.email);
     return context.req.user;
   }
 
-  // Query to retrieve all users (restricted to admin role)
+  /** Запрос для получения списка всех пользователей (только для админов) */
   @Query(() => [User])
   @UseGuards(GqlAuthGuard, RoleGuard)
   @Roles(Role.Admin)
   async users(): Promise<User[]> {
-    console.log('Fetching all users');
+    console.log('Получение списка всех пользователей');
     return this.userService.findAll();
   }
 
-  // Mutation to update a user's information
+  /** Мутация для обновления данных пользователя */
   @Mutation(() => User)
   @UseGuards(GqlAuthGuard)
   async updateUser(@Args('id') id: number, @Args('data') data: UpdateUserInput): Promise<User> {
-    console.log(`Updating user with ID ${id}:`, data);
+    console.log(`Обновление пользователя с ID ${id}:`, data);
     return this.userService.update(id, {
       ...data,
       roles: data.roles ? data.roles.map(role => role as Role) : undefined,

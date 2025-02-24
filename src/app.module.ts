@@ -14,7 +14,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { JwtService } from '@nestjs/jwt';
 
 /**
- * Основной модуль приложения, объединяющий GraphQL API, кэширование и управление пользователями.
+ * Главный модуль приложения, интегрирующий GraphQL, кэширование и управление пользователями.
  */
 @Module({
   imports: [
@@ -25,14 +25,14 @@ import { JwtService } from '@nestjs/jwt';
         REDIS_HOST: Joi.string().default('localhost'),
         REDIS_PORT: Joi.number().default(6379),
         REDIS_PASSWORD: Joi.string().optional(),
-        REDIS_TTL: Joi.number().default(300), // 5 минут по умолчанию
+        REDIS_TTL: Joi.number().default(300),
         GRAPHQL_PLAYGROUND: Joi.boolean().default(false),
         VPN_SERVER_HOST: Joi.string().optional(),
       }),
     }),
     GraphQLModule.forRootAsync<ApolloDriverConfig>({
       driver: ApolloDriver,
-      imports: [ConfigModule],
+      imports: [ConfigModule, UserModule], // Импортируем UserModule для доступа к JwtService
       inject: [ConfigService, JwtService],
       useFactory: async (configService: ConfigService, jwtService: JwtService) => ({
         autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
@@ -51,24 +51,19 @@ import { JwtService } from '@nestjs/jwt';
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => {
         const logger = new Logger('RedisCache');
-        try {
-          const store = await redisStore({
-            socket: {
-              host: configService.get<string>('REDIS_HOST'),
-              port: configService.get<number>('REDIS_PORT'),
-              tls: configService.get<string>('NODE_ENV') === 'production', // TLS в продакшене
-            },
-            password: configService.get<string>('REDIS_PASSWORD') || undefined,
-          });
-          logger.log(`Redis подключен к ${configService.get<string>('REDIS_HOST')}`);
-          return {
-            store,
-            ttl: configService.get<number>('REDIS_TTL'),
-          };
-        } catch (error) {
-          logger.error('Ошибка подключения к Redis', error);
-          throw error;
-        }
+        const store = await redisStore({
+          socket: {
+            host: configService.get<string>('REDIS_HOST'),
+            port: configService.get<number>('REDIS_PORT'),
+            tls: configService.get<string>('NODE_ENV') === 'production',
+          },
+          password: configService.get<string>('REDIS_PASSWORD') || undefined,
+        });
+        logger.log(`Redis connected to ${configService.get<string>('REDIS_HOST')}`);
+        return {
+          store,
+          ttl: configService.get<number>('REDIS_TTL'),
+        };
       },
     }),
     UserModule,

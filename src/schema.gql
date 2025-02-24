@@ -3,12 +3,18 @@
 # ------------------------------------------------------
 
 type AuthResponse {
+  """Access token"""
   accessToken: String!
+
+  """User details"""
   user: User!
 }
 
 input LoginInput {
+  """User email"""
   email: String!
+
+  """User password"""
   password: String!
 }
 
@@ -25,7 +31,10 @@ type Query {
 }
 
 input RegisterUserInput {
+  """User email"""
   email: String!
+
+  """User password"""
   password: String!
 }
 
@@ -36,8 +45,13 @@ enum Role {
 }
 
 input UpdateUserInput {
+  """User email"""
   email: String
+
+  """User password"""
   password: String
+
+  """User roles"""
   roles: [Role!]
 }
 

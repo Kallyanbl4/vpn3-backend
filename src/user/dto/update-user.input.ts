@@ -1,28 +1,30 @@
-// file: src/user/dto/register-user.input.ts
+// file: src/user/dto/update-user.input.ts
 import { InputType, Field } from '@nestjs/graphql';
 import { IsEmail, MinLength } from 'class-validator';
 import { Role } from '../role.enum';
 
-@InputType()
-export class RegisterUserInput {
-  @Field()
-  @IsEmail()
-  email: string;
-
-  @Field()
-  @MinLength(6)
-  password: string;
-}
+/**
+ * Input type for updating user information.
+ */
 @InputType()
 export class UpdateUserInput {
-  @Field({ nullable: true })
-  @IsEmail()
+  /**
+   * User's email address (optional).
+   */
+  @Field({ nullable: true, description: 'User email' })
+  @IsEmail({}, { message: 'Invalid email format' })
   email?: string;
 
-  @Field({ nullable: true })
-  @MinLength(6)
+  /**
+   * User's password (optional, minimum 6 characters).
+   */
+  @Field({ nullable: true, description: 'User password' })
+  @MinLength(6, { message: 'Password must be at least 6 characters long' })
   password?: string;
 
-  @Field(() => [Role], { nullable: true })
+  /**
+   * User's roles (optional).
+   */
+  @Field(() => [Role], { nullable: true, description: 'User roles' })
   roles?: Role[];
 }

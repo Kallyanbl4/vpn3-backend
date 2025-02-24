@@ -1,23 +1,19 @@
-/**
- * Роли пользователей в системе.
- */
-export enum Role {
-  Admin = 'admin',
-  User = 'user',
-}
+import { IsNumber, IsString, IsEnum } from 'class-validator';
+import { Role } from './role.enum';
 
-/**
- * Структура полезной нагрузки JWT-токена для аутентификации пользователей.
- */
-export interface JwtPayload {
-  /** Идентификатор пользователя */
+export class JwtPayload {
+  @IsNumber()
   sub: number;
-  /** Email пользователя */
+
+  @IsString()
   email: string;
-  /** Роли пользователя */
+
+  @IsEnum(Role, { each: true })
   roles: Role[];
-  /** Время выпуска токена (опционально) */
+
+  @IsNumber()
   iat?: number;
-  /** Время истечения срока действия (опционально) */
+
+  @IsNumber()
   exp?: number;
 }
