@@ -41,3 +41,40 @@ model TariffPlan {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
+
+model Payment {
+  id             String   @id @default(uuid())
+  userId         String
+  subscriptionId String?
+  tariffPlanId   String?
+  amount         Float
+  currency       String
+  status         String
+  paymentMethod  String?
+  periodType     String?
+  periodDays     Int?
+  externalId     String?
+  invoiceUrl     String?
+  receiptUrl     String?
+  description    String?
+  metadata       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model PaymentIntent {
+  id                     String   @id @default(uuid())
+  userId                 String
+  subscriptionId         String?
+  tariffPlanId           String?
+  amount                 Float
+  currency               String
+  status                 String
+  availablePaymentMethods String?
+  description            String?
+  expiresAt              DateTime
+  paymentUrl             String
+  returnUrl              String?
+  metadata               String?
+  createdAt              DateTime @default(now())
+}
