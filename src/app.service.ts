@@ -1,58 +1,58 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { ConfigService } from '@nestjs/config';
-import { Cache } from 'cache-manager';
+// src/app.service.ts
+import { Injectable, Logger } from '@nestjs/common';
+import { AppConfigService } from './config/app-config.service';
+import { CacheService } from './common/cache/cache.service';
 
 /**
- * Service providing basic application information and VPN status.
+ * Сервис, предоставляющий основную информацию о приложении и статусе VPN.
  */
 @Injectable()
 export class AppService {
   private readonly logger = new Logger(AppService.name);
+  private readonly VPN_CACHE_KEY = 'vpn_status';
 
   constructor(
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
-    private readonly configService: ConfigService,
+    private readonly configService: AppConfigService,
+    private readonly cacheService: CacheService,
   ) {}
 
   /**
-   * Returns a welcome message to check application health.
-   * @returns {string} Welcome message
+   * Возвращает приветственное сообщение для проверки работоспособности приложения.
    */
   getHello(): string {
     this.logger.log('Returning welcome message');
-    return this.configService.get<string>('WELCOME_MESSAGE') || 'Hello World!';
+    return this.configService.welcomeMessage;
   }
 
   /**
-   * Asynchronously retrieves the VPN server status with caching.
-   * @returns {Promise<string>} VPN server status
+   * Асинхронно получает статус VPN-сервера с кэшированием.
    */
   async getVpnStatus(): Promise<string> {
-    const cacheKey = 'vpn_status';
-    const cachedStatus = await this.cacheManager.get<string>(cacheKey);
-
-    if (cachedStatus) {
-      this.logger.log('Returning cached VPN status');
-      return cachedStatus;
-    }
-
-    const vpnHost = this.configService.get<string>('VPN_SERVER_HOST') || 'unknown';
-    const status = await this.fetchVpnStatus(vpnHost); // Заменить на реальную логику
-    const ttl = this.configService.get<number>('REDIS_TTL') || 300;
-
-    await this.cacheManager.set(cacheKey, status, ttl);
-    this.logger.log(`Cached VPN status for ${vpnHost}`);
-    return status;
+    this.logger.log('Getting VPN status');
+    
+    return this.cacheService.getOrSet(
+      this.VPN_CACHE_KEY,
+      async () => {
+        const vpnHost = this.configService.vpnServerHost;
+        this.logger.log(`Fetching VPN status for host: ${vpnHost}`);
+        return this.fetchVpnStatus(vpnHost);
+      }
+    );
   }
 
   /**
-   * Fetches VPN status from an external service (placeholder).
-   * @param {string} host VPN server host
-   * @returns {Promise<string>} VPN status
+   * Получает статус VPN из внешнего сервиса (заглушка).
+   * @param host Хост VPN-сервера
    */
   private async fetchVpnStatus(host: string): Promise<string> {
-    // Placeholder: Implement real VPN status check (e.g., HTTP request)
+    this.logger.log(`Actually fetching VPN status for: ${host}`);
+    
+    // В реальном приложении здесь будет HTTP-запрос к VPN-серверу
+    // Сейчас это просто заглушка
+    
+    // Симуляция задержки сетевого запроса
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     return `VPN server at ${host} is running`;
   }
 }

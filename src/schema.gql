@@ -3,60 +3,68 @@
 # ------------------------------------------------------
 
 type AuthResponse {
-  """Access token"""
   accessToken: String!
-
-  """User details"""
   user: User!
 }
 
-input LoginInput {
-  """User email"""
-  email: String!
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
 
-  """User password"""
+input LoginInput {
+  email: String!
   password: String!
 }
 
 type Mutation {
-  login(data: LoginInput!): AuthResponse!
-  register(data: RegisterUserInput!): User!
-  updateUser(data: UpdateUserInput!, id: Float!): User!
+  """Delete user (Admin only)"""
+  deleteUser(id: Int!): Boolean!
+  login(input: LoginInput!): AuthResponse!
+  logout: Boolean!
+  register(input: RegisterUserInput!): User!
+
+  """Update user data"""
+  updateUser(data: UpdateUserDto!, id: Int!): User!
 }
 
 type Query {
   getHello: String!
+
+  """Get current user profile"""
   me: User!
+
+  """Get user by ID"""
+  user(id: Int!): User!
+
+  """Get all users (Admin only)"""
   users: [User!]!
 }
 
 input RegisterUserInput {
-  """User email"""
   email: String!
-
-  """User password"""
   password: String!
 }
 
 """User roles"""
 enum Role {
   Admin
+  SuperAdmin
   User
 }
 
-input UpdateUserInput {
-  """User email"""
+"""Update user input"""
+input UpdateUserDto {
   email: String
-
-  """User password"""
   password: String
-
-  """User roles"""
   roles: [Role!]
 }
 
+"""User object"""
 type User {
+  createdAt: DateTime
   email: String!
-  id: Float!
+  id: Int!
   roles: [Role!]!
+  updatedAt: DateTime
 }

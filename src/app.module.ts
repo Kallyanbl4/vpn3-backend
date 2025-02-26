@@ -1,43 +1,49 @@
-import { Module, Logger } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { CacheModule } from '@nestjs/cache-manager';
-import { redisStore } from 'cache-manager-redis-yet';
+// src/app.module.ts
+import { Module } from '@nestjs/common';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'path';
-import { AppResolver } from './app.resolver';
-import Joi from 'joi';
-import { UserModule } from './user/user.module';
+import { APP_FILTER } from '@nestjs/core';
+
+// Filters
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
+
+// Modules
+import { ConfigModule } from './config/config.module';
+import { CacheModule } from './common/cache/cache.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { UserModule } from './user/user.module';
+import { AuthModule } from './auth/auth.module';
+
+// Services and Controllers
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { AppResolver } from './app.resolver';
+import { AppConfigService } from './config/app-config.service';
 import { JwtService } from '@nestjs/jwt';
 
 /**
- * Главный модуль приложения, интегрирующий GraphQL, кэширование и управление пользователями.
+ * Главный модуль приложения, интегрирующий все компоненты системы.
  */
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-      validationSchema: Joi.object({
-        JWT_SECRET: Joi.string().required(),
-        REDIS_HOST: Joi.string().default('localhost'),
-        REDIS_PORT: Joi.number().default(6379),
-        REDIS_PASSWORD: Joi.string().optional(),
-        REDIS_TTL: Joi.number().default(300),
-        GRAPHQL_PLAYGROUND: Joi.boolean().default(false),
-        VPN_SERVER_HOST: Joi.string().optional(),
-      }),
-    }),
+    // Загрузка конфигурации
+    ConfigModule,
+    
+    // Настройка кэширования
+    CacheModule,
+    
+    // GraphQL API
     GraphQLModule.forRootAsync<ApolloDriverConfig>({
       driver: ApolloDriver,
-      imports: [ConfigModule, UserModule], // Импортируем UserModule для доступа к JwtService
-      inject: [ConfigService, JwtService],
-      useFactory: async (configService: ConfigService, jwtService: JwtService) => ({
+      imports: [ConfigModule, AuthModule],
+      inject: [AppConfigService, JwtService],
+      useFactory: async (configService: AppConfigService, jwtService: JwtService) => ({
         autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
         sortSchema: true,
-        playground: configService.get<boolean>('GRAPHQL_PLAYGROUND'),
+        playground: configService.graphqlPlayground,
         context: ({ req }) => {
           const token = req.headers.authorization?.split(' ')[1];
           const user = token ? jwtService.verify(token) : null;
@@ -45,31 +51,31 @@ import { JwtService } from '@nestjs/jwt';
         },
       }),
     }),
-    CacheModule.registerAsync({
-      isGlobal: true,
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => {
-        const logger = new Logger('RedisCache');
-        const store = await redisStore({
-          socket: {
-            host: configService.get<string>('REDIS_HOST'),
-            port: configService.get<number>('REDIS_PORT'),
-            tls: configService.get<string>('NODE_ENV') === 'production',
-          },
-          password: configService.get<string>('REDIS_PASSWORD') || undefined,
-        });
-        logger.log(`Redis connected to ${configService.get<string>('REDIS_HOST')}`);
-        return {
-          store,
-          ttl: configService.get<number>('REDIS_TTL'),
-        };
-      },
-    }),
-    UserModule,
+    
+    // Доступ к базе данных
     PrismaModule,
+    
+    // Функциональные модули
+    UserModule,
+    AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService, AppResolver],
+  providers: [
+    AppService,
+    AppResolver,
+    // Глобальные фильтры исключений
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: PrismaExceptionFilter,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
+    },
+  ],
 })
 export class AppModule {}
