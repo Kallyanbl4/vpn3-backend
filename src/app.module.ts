@@ -16,6 +16,7 @@ import { CacheModule } from './common/cache/cache.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
+import { TariffModule } from './tariff/tariff.module';
 
 // Services and Controllers
 import { AppController } from './app.controller';
@@ -58,6 +59,7 @@ import { JwtService } from '@nestjs/jwt';
     // Функциональные модули
     UserModule,
     AuthModule,
+    TariffModule, // Добавлен новый модуль тарифов
   ],
   controllers: [AppController],
   providers: [

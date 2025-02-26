@@ -7,6 +7,48 @@ type AuthResponse {
   user: User!
 }
 
+"""Available billing periods for tariff plans"""
+enum BillingPeriod {
+  CUSTOM
+  DAY
+  MONTH
+  QUARTER
+  WEEK
+  YEAR
+}
+
+input CalculateTariffPriceInput {
+  durationDays: Int!
+  tariffPlanId: ID!
+}
+
+input CreateTariffPlanInput {
+  availableBillingPeriods: [BillingPeriod!]!
+  code: String!
+  customPeriodDailyPrice: Float
+  customPeriodEnabled: Boolean!
+  customPeriodMaxDays: Int
+  customPeriodMinDays: Int
+  description: String
+  features: [String!]!
+  limits: TariffLimitsInput!
+  name: String!
+  priceAnnually: Float
+  priceDaily: Float
+  priceMonthly: Float
+  priceQuarterly: Float
+  status: TariffStatus! = DRAFT
+  type: TariffType!
+}
+
+input CreateTemporaryTariffInput {
+  durationDays: Int!
+  features: [String!]!
+  limits: TemporaryTariffLimitsInput!
+  name: String!
+  price: Float!
+}
+
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
@@ -18,21 +60,52 @@ input LoginInput {
 }
 
 type Mutation {
+  """Change tariff plan status (Admin only)"""
+  changeTariffStatus(id: ID!, status: TariffStatus!): TariffPlan!
+
+  """Create a new tariff plan (Admin only)"""
+  createTariffPlan(input: CreateTariffPlanInput!): TariffPlan!
+
+  """Create a temporary tariff plan (Admin only)"""
+  createTemporaryTariff(input: CreateTemporaryTariffInput!): TariffPlan!
+
   """Delete user (Admin only)"""
   deleteUser(id: Int!): Boolean!
   login(input: LoginInput!): AuthResponse!
   logout: Boolean!
   register(input: RegisterUserInput!): User!
 
+  """Update an existing tariff plan (Admin only)"""
+  updateTariffPlan(id: ID!, input: UpdateTariffPlanInput!): TariffPlan!
+
   """Update user data"""
   updateUser(data: UpdateUserDto!, id: Int!): User!
 }
 
+input PaginationInput {
+  skip: Int! = 0
+  take: Int! = 10
+}
+
 type Query {
+  """Get all active tariff plans"""
+  activeTariffPlans: [TariffPlan!]!
+
+  """Calculate tariff price for a specific duration"""
+  calculateTariffPrice(input: CalculateTariffPriceInput!): TariffPriceCalculation!
+
+  """Compare multiple tariff plans"""
+  compareTariffs(ids: [ID!]!): TariffComparisonResult!
   getHello: String!
 
   """Get current user profile"""
   me: User!
+
+  """Get tariff plan by ID"""
+  tariffPlan(id: ID!): TariffPlan!
+
+  """Get all tariff plans with filtering and pagination"""
+  tariffPlans(filter: TariffFilterInput, pagination: PaginationInput): [TariffPlan!]!
 
   """Get user by ID"""
   user(id: Int!): User!
@@ -51,6 +124,107 @@ enum Role {
   Admin
   SuperAdmin
   User
+}
+
+"""Tariff comparison result"""
+type TariffComparisonResult {
+  comparedFeatures: [String!]!
+  tariffs: [TariffPlan!]!
+}
+
+input TariffFilterInput {
+  billingPeriods: [BillingPeriod!]
+  customPeriodEnabled: Boolean
+  searchTerm: String
+  statuses: [TariffStatus!]
+  types: [TariffType!]
+}
+
+"""Tariff limits"""
+type TariffLimits {
+  bandwidth: Int
+  dataLimit: Int
+  devicesCount: Int!
+}
+
+input TariffLimitsInput {
+  bandwidth: Int
+  dataLimit: Int
+  devicesCount: Int!
+}
+
+"""Tariff plan model"""
+type TariffPlan {
+  availableBillingPeriods: [BillingPeriod!]!
+  code: String!
+  createdAt: DateTime!
+  customPeriodDailyPrice: Float
+  customPeriodEnabled: Boolean!
+  customPeriodMaxDays: Int
+  customPeriodMinDays: Int
+  description: String
+  features: [String!]!
+  id: ID!
+  limits: TariffLimits!
+  name: String!
+  priceAnnually: Float
+  priceDaily: Float
+  priceMonthly: Float
+  priceQuarterly: Float
+  status: TariffStatus!
+  type: TariffType!
+  updatedAt: DateTime!
+}
+
+"""Tariff price calculation result"""
+type TariffPriceCalculation {
+  billingPeriod: BillingPeriod!
+  discountPercentage: Float
+  durationDays: Int!
+  finalPrice: Float!
+  hasDiscount: Boolean!
+  originalPrice: Float!
+  tariff: TariffPlan!
+}
+
+"""Status of tariff plans"""
+enum TariffStatus {
+  ACTIVE
+  ARCHIVED
+  DRAFT
+}
+
+"""Types of tariff plans"""
+enum TariffType {
+  BASIC
+  BUSINESS
+  PREMIUM
+  TEMPORARY
+}
+
+input TemporaryTariffLimitsInput {
+  bandwidth: Int
+  dataLimit: Int
+  devicesCount: Int!
+}
+
+input UpdateTariffPlanInput {
+  availableBillingPeriods: [BillingPeriod!]
+  code: String
+  customPeriodDailyPrice: Float
+  customPeriodEnabled: Boolean
+  customPeriodMaxDays: Int
+  customPeriodMinDays: Int
+  description: String
+  features: [String!]
+  limits: TariffLimitsInput
+  name: String
+  priceAnnually: Float
+  priceDaily: Float
+  priceMonthly: Float
+  priceQuarterly: Float
+  status: TariffStatus = DRAFT
+  type: TariffType
 }
 
 """Update user input"""
